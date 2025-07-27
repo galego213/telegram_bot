@@ -1,34 +1,24 @@
-import asyncio
-import nest_asyncio
-from telegram import Update
-from telegram.ext import ApplicationBuilder, ChatJoinRequestHandler, ContextTypes
+import telebot
+import os
 
-TOKEN = "7814430830:AAFjRJA_41Z0nhkJYbPNAD8CKUB5lr6uDnw"
+# Token protegido via variável de ambiente
+TOKEN = os.getenv("TELEGRAM_TOKEN")
+bot = telebot.TeleBot(TOKEN)
 
-WELCOME_MESSAGE = "👋 Olá, {name}! Seja muito bem-vindo ao nosso grupo!"
+# Evento de novos membros com pedido de entrada
+@bot.chat_member_handler()
+def handle_join_request(message):
+    chat_id = message.chat.id
+    user = message.new_chat_member.user
 
-# Função que será chamada quando houver uma solicitação de entrada no grupo
-async def aprovar_solicitacao(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.chat_join_request.from_user
-    chat_id = update.chat_join_request.chat.id
+    # Aprova automaticamente o pedido de entrada
+    bot.approve_chat_join_request(chat_id, user.id)
 
-    # Aprova automaticamente o usuário
-    await context.bot.approve_chat_join_request(chat_id=chat_id, user_id=user.id)
+    # Mensagem de boas-vindas
+    bot.send_message(chat_id, f"👋 Bem-vindo(a), @{user.username or user.first_name}!")
 
-    # Envia mensagem de boas-vindas
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text=WELCOME_MESSAGE.format(name=user.full_name)
-    )
+    # Log para Railway
+    print(f"✅ Usuário aprovado: {user.username or user.first_name}")
 
-# Função principal que configura e roda o bot
-async def main():
-    print("🤖 Bot iniciado e aguardando solicitações...")
-    app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(ChatJoinRequestHandler(aprovar_solicitacao))
-    await app.run_polling()
-
-# Rodar o bot corretamente mesmo em ambientes com loop ativo
-if __name__ == "__main__":
-    nest_asyncio.apply()  # Evita erro de loop já rodando
-    asyncio.run(main())
+# Inicia o bot com polling infinito, ideal para produção
+bot.infinity_polling(timeout=10, long_polling_timeout=5)
